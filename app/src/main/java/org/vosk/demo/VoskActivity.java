@@ -50,7 +50,6 @@ public class VoskActivity extends Activity implements
 
     /* Used to handle permission request */
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
-
     private Model model;
     private SpeechService speechService;
     private SpeechStreamService speechStreamService;
@@ -58,6 +57,8 @@ public class VoskActivity extends Activity implements
 
     @Override
     public void onCreate(Bundle state) {
+        requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        setContentView(R.layout.main);
         super.onCreate(state);
         setContentView(R.layout.main);
 
@@ -65,7 +66,6 @@ public class VoskActivity extends Activity implements
         resultView = findViewById(R.id.result_text);
         setUiState(STATE_START);
 
-        findViewById(R.id.recognize_file).setOnClickListener(view -> recognizeFile());
         findViewById(R.id.recognize_mic).setOnClickListener(view -> recognizeMicrophone());
         ((ToggleButton) findViewById(R.id.pause)).setOnCheckedChangeListener((view, isChecked) -> pause(isChecked));
 
@@ -81,7 +81,7 @@ public class VoskActivity extends Activity implements
     }
 
     private void initModel() {
-        StorageService.unpack(this, "model-en-us", "model",
+        StorageService.unpack(this, "model-es", "model",
                 (model) -> {
                     this.model = model;
                     setUiState(STATE_READY);
@@ -97,7 +97,7 @@ public class VoskActivity extends Activity implements
 
         if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Recognizer initialization is a time-consuming and it involves IO,
+                // Recognizer initialization is a time-consuming and, it involves IO,
                 // so we execute it in async task
                 initModel();
             } else {
@@ -120,14 +120,33 @@ public class VoskActivity extends Activity implements
         }
     }
 
+    // Método auxiliar para extraer el texto del JSON y reemplazarlo en la pantalla
+    private void actualizarTexto(String hypothesis, String key) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(hypothesis);
+            if (json.has(key)) {
+                String textoLimpio = json.getString(key);
+                // Si el texto no está vacío, REEMPLAZA el valor en el TextView
+                if (!textoLimpio.trim().isEmpty()) {
+                    resultView.setText(textoLimpio);
+                }
+            }
+        } catch (org.json.JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void onResult(String hypothesis) {
-        resultView.append(hypothesis + "\n");
+        // Cuando termina un fragmento, Vosk usa la clave "text"
+        actualizarTexto(hypothesis, "text");
     }
 
     @Override
     public void onFinalResult(String hypothesis) {
-        resultView.append(hypothesis + "\n");
+        // El resultado final también usa la clave "text"
+        actualizarTexto(hypothesis, "text");
+
         setUiState(STATE_DONE);
         if (speechStreamService != null) {
             speechStreamService = null;
@@ -136,7 +155,8 @@ public class VoskActivity extends Activity implements
 
     @Override
     public void onPartialResult(String hypothesis) {
-        resultView.append(hypothesis + "\n");
+        // Mientras estás hablando, Vosk usa la clave "partial"
+        actualizarTexto(hypothesis, "partial");
     }
 
     @Override
@@ -154,36 +174,29 @@ public class VoskActivity extends Activity implements
             case STATE_START:
                 resultView.setText(R.string.preparing);
                 resultView.setMovementMethod(new ScrollingMovementMethod());
-                findViewById(R.id.recognize_file).setEnabled(false);
                 findViewById(R.id.recognize_mic).setEnabled(false);
                 findViewById(R.id.pause).setEnabled((false));
                 break;
             case STATE_READY:
                 resultView.setText(R.string.ready);
                 ((Button) findViewById(R.id.recognize_mic)).setText(R.string.recognize_microphone);
-                findViewById(R.id.recognize_file).setEnabled(true);
                 findViewById(R.id.recognize_mic).setEnabled(true);
                 findViewById(R.id.pause).setEnabled((false));
                 break;
             case STATE_DONE:
-                ((Button) findViewById(R.id.recognize_file)).setText(R.string.recognize_file);
                 ((Button) findViewById(R.id.recognize_mic)).setText(R.string.recognize_microphone);
-                findViewById(R.id.recognize_file).setEnabled(true);
                 findViewById(R.id.recognize_mic).setEnabled(true);
                 findViewById(R.id.pause).setEnabled((false));
                 ((ToggleButton) findViewById(R.id.pause)).setChecked(false);
                 break;
             case STATE_FILE:
-                ((Button) findViewById(R.id.recognize_file)).setText(R.string.stop_file);
                 resultView.setText(getString(R.string.starting));
                 findViewById(R.id.recognize_mic).setEnabled(false);
-                findViewById(R.id.recognize_file).setEnabled(true);
                 findViewById(R.id.pause).setEnabled((false));
                 break;
             case STATE_MIC:
                 ((Button) findViewById(R.id.recognize_mic)).setText(R.string.stop_microphone);
-                resultView.setText(getString(R.string.say_something));
-                findViewById(R.id.recognize_file).setEnabled(false);
+                resultView.setText(getString(R.string.say_something));;
                 findViewById(R.id.recognize_mic).setEnabled(true);
                 findViewById(R.id.pause).setEnabled((true));
                 break;
@@ -195,7 +208,6 @@ public class VoskActivity extends Activity implements
     private void setErrorState(String message) {
         resultView.setText(message);
         ((Button) findViewById(R.id.recognize_mic)).setText(R.string.recognize_microphone);
-        findViewById(R.id.recognize_file).setEnabled(false);
         findViewById(R.id.recognize_mic).setEnabled(false);
     }
 
