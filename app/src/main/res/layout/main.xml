@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<<<<<<< HEAD
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+=======
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+>>>>>>> 4e6b0de1c20aded759309a300af831677f014c12
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
@@ -8,13 +12,20 @@
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabs"
         android:layout_width="match_parent"
+<<<<<<< HEAD
         android:layout_height="wrap_content">
+=======
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+>>>>>>> 4e6b0de1c20aded759309a300af831677f014c12
 
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/tab_recognition" />
 
+<<<<<<< HEAD
         <com.google.android.material.tabs.TabItem
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -95,3 +106,23 @@
         </LinearLayout>
     </FrameLayout>
 </LinearLayout>
+=======
+        <ToggleButton
+            android:id="@+id/pause"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textOn="Pause ON"
+            android:textOff="Pause OFF" />
+
+        <TextView
+            android:id="@+id/result_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ready"
+            android:textSize="18sp"
+            android:paddingTop="16dp" />
+
+    </LinearLayout>
+
+</ScrollView>
+>>>>>>> 4e6b0de1c20aded759309a300af831677f014c12
