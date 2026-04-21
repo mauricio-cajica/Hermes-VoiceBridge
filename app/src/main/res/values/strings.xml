@@ -14,4 +14,9 @@
     <string name="pause">Pause</string>
     <string name="continueRecognition">Continue</string>
 
+    <string name="tab_recognition">Recognition</string>
+    <string name="tab_customization">Customization</string>
+    <string name="font_size_label">Subtitle Font Size: %d sp</string>
+    <string name="font_family_label">Font Family:</string>
+
 </resources>

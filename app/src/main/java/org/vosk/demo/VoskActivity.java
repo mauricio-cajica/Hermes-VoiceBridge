@@ -17,9 +17,16 @@ package org.vosk.demo;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.SeekBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
@@ -33,14 +40,17 @@ import org.vosk.android.SpeechStreamService;
 import org.vosk.android.StorageService;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.tabs.TabLayout;
+
 public class VoskActivity extends Activity implements
         RecognitionListener {
+
+    private static final String TAG = "VoskActivity";
 
     static private final int STATE_START = 0;
     static private final int STATE_READY = 1;
@@ -55,19 +65,29 @@ public class VoskActivity extends Activity implements
     private SpeechStreamService speechStreamService;
     private TextView resultView;
 
+    private View recognitionLayout;
+    private View customizationLayout;
+    private TextView fontSizeLabel;
+
     @Override
     public void onCreate(Bundle state) {
         requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
-        setContentView(R.layout.main);
         super.onCreate(state);
         setContentView(R.layout.main);
 
         // Setup layout
         resultView = findViewById(R.id.result_text);
+        recognitionLayout = findViewById(R.id.recognition_layout);
+        customizationLayout = findViewById(R.id.customization_layout);
+        fontSizeLabel = findViewById(R.id.font_size_label);
+
         setUiState(STATE_START);
 
         findViewById(R.id.recognize_mic).setOnClickListener(view -> recognizeMicrophone());
         ((ToggleButton) findViewById(R.id.pause)).setOnCheckedChangeListener((view, isChecked) -> pause(isChecked));
+
+        setupTabs();
+        setupCustomization();
 
         LibVosk.setLogLevel(LogLevel.INFO);
 
@@ -78,6 +98,74 @@ public class VoskActivity extends Activity implements
         } else {
             initModel();
         }
+    }
+
+    private void setupTabs() {
+        TabLayout tabLayout = findViewById(R.id.tabs);
+        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                if (tab.getPosition() == 0) {
+                    recognitionLayout.setVisibility(View.VISIBLE);
+                    customizationLayout.setVisibility(View.GONE);
+                } else {
+                    recognitionLayout.setVisibility(View.GONE);
+                    customizationLayout.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {}
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {}
+        });
+    }
+
+    private void setupCustomization() {
+        // Font Size
+        SeekBar fontSizeSeekBar = findViewById(R.id.font_size_seekbar);
+        int initialProgress = (int) (resultView.getTextSize() / getResources().getDisplayMetrics().scaledDensity);
+        fontSizeSeekBar.setProgress(initialProgress);
+        fontSizeLabel.setText(getString(R.string.font_size_label, initialProgress));
+
+        fontSizeSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int size = progress;
+                if (size < 10) size = 10; // Minimum font size
+                resultView.setTextSize(size);
+                fontSizeLabel.setText(getString(R.string.font_size_label, size));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        // Font Family
+        Spinner fontFamilySpinner = findViewById(R.id.font_family_spinner);
+        String[] fonts = {"Default", "Sans Serif", "Serif", "Monospace"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, fonts);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        fontFamilySpinner.setAdapter(adapter);
+
+        fontFamilySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                switch (position) {
+                    case 0: resultView.setTypeface(Typeface.DEFAULT); break;
+                    case 1: resultView.setTypeface(Typeface.SANS_SERIF); break;
+                    case 2: resultView.setTypeface(Typeface.SERIF); break;
+                    case 3: resultView.setTypeface(Typeface.MONOSPACE); break;
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
     }
 
     private void initModel() {
@@ -132,7 +220,7 @@ public class VoskActivity extends Activity implements
                 }
             }
         } catch (org.json.JSONException e) {
-            e.printStackTrace();
+            Log.e(TAG, "JSON parsing error", e);
         }
     }
 
@@ -196,7 +284,7 @@ public class VoskActivity extends Activity implements
                 break;
             case STATE_MIC:
                 ((Button) findViewById(R.id.recognize_mic)).setText(R.string.stop_microphone);
-                resultView.setText(getString(R.string.say_something));;
+                resultView.setText(getString(R.string.say_something));
                 findViewById(R.id.recognize_mic).setEnabled(true);
                 findViewById(R.id.pause).setEnabled((true));
                 break;
@@ -209,29 +297,6 @@ public class VoskActivity extends Activity implements
         resultView.setText(message);
         ((Button) findViewById(R.id.recognize_mic)).setText(R.string.recognize_microphone);
         findViewById(R.id.recognize_mic).setEnabled(false);
-    }
-
-    private void recognizeFile() {
-        if (speechStreamService != null) {
-            setUiState(STATE_DONE);
-            speechStreamService.stop();
-            speechStreamService = null;
-        } else {
-            setUiState(STATE_FILE);
-            try {
-                Recognizer rec = new Recognizer(model, 16000.f, "[\"one zero zero zero one\", " +
-                        "\"oh zero one two three four five six seven eight nine\", \"[unk]\"]");
-
-                InputStream ais = getAssets().open(
-                        "10001-90210-01803.wav");
-                if (ais.skip(44) != 44) throw new IOException("File too short");
-
-                speechStreamService = new SpeechStreamService(rec, ais, 16000);
-                speechStreamService.start(this);
-            } catch (IOException e) {
-                setErrorState(e.getMessage());
-            }
-        }
     }
 
     private void recognizeMicrophone() {
