@@ -1,128 +1,276 @@
 <?xml version="1.0" encoding="utf-8"?>
-<<<<<<< HEAD
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-=======
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
->>>>>>> 4e6b0de1c20aded759309a300af831677f014c12
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:background="#F5F5F5">
 
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tabs"
-        android:layout_width="match_parent"
-<<<<<<< HEAD
-        android:layout_height="wrap_content">
-=======
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
->>>>>>> 4e6b0de1c20aded759309a300af831677f014c12
-
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/tab_recognition" />
-
-<<<<<<< HEAD
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/tab_customization" />
-    </com.google.android.material.tabs.TabLayout>
-
+    <!-- Content Area -->
     <FrameLayout
+        android:id="@+id/content_frame"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:layout_above="@+id/bottom_navigation">
 
-        <ScrollView
+        <!-- Recognition Layout -->
+        <RelativeLayout
             android:id="@+id/recognition_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:fillViewport="true"
+            android:padding="24dp"
             android:visibility="visible">
 
-            <LinearLayout
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_above="@+id/controls_container"
+                android:layout_marginBottom="24dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp">
+
+                <ScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fillViewport="true"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/result_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/ready"
+                        android:textColor="#212121"
+                        android:textSize="24sp" />
+                </ScrollView>
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout
+                android:id="@+id/controls_container"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:paddingBottom="16dp"
+                android:orientation="horizontal"
+                android:gravity="center">
 
-                <Button
-                    android:id="@+id/recognize_mic"
-                    android:layout_width="match_parent"
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/save_btn"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/recognize_microphone" />
+                    android:layout_marginEnd="16dp"
+                    android:src="@drawable/ic_save"
+                    app:tint="@android:color/white"
+                    app:backgroundTint="@color/teal_700"
+                    app:fabSize="mini"
+                    android:contentDescription="@string/save_text" />
 
-                <ToggleButton
-                    android:id="@+id/pause"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
-
-                <TextView
-                    android:id="@+id/result_text"
-                    android:layout_width="match_parent"
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/record_btn"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/ready" />
-
+                    android:src="@drawable/ic_mic"
+                    app:tint="@android:color/white"
+                    app:backgroundTint="@color/purple_500"
+                    app:fabSize="normal"
+                    android:contentDescription="@string/recognize_microphone" />
             </LinearLayout>
-        </ScrollView>
 
+        </RelativeLayout>
+
+        <!-- Customization Layout -->
         <LinearLayout
             android:id="@+id/customization_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical"
-            android:padding="16dp"
+            android:padding="24dp"
             android:visibility="gone">
 
             <TextView
-                android:id="@+id/font_size_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/font_size_label"
-                android:paddingTop="8dp" />
+                android:text="@string/tab_customization"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="24dp"
+                android:textColor="@color/purple_700"/>
 
-            <SeekBar
-                android:id="@+id/font_size_seekbar"
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:max="40"
-                android:progress="18" />
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/font_size_label"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/font_size_label"
+                        android:textColor="#424242" />
+
+                    <SeekBar
+                        android:id="@+id/font_size_seekbar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:max="40"
+                        android:progress="18" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/font_family_label"
+                        android:textColor="#424242" />
+
+                    <Spinner
+                        android:id="@+id/font_family_spinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+        <!-- LAN Layout -->
+        <LinearLayout
+            android:id="@+id/lan_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:visibility="gone">
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/font_family_label"
-                android:paddingTop="16dp" />
+                android:text="@string/tab_lan"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="24dp"
+                android:textColor="@color/purple_700"/>
 
-            <Spinner
-                android:id="@+id/font_family_spinner"
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
+                android:hint="@string/room_name_hint"
+                android:layout_marginBottom="16dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/room_name_edit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <Button
+                android:id="@+id/create_room_btn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/create_room"
+                android:layout_marginBottom="24dp"
+                style="@style/Widget.MaterialComponents.Button" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/available_rooms"
+                android:textStyle="bold"
+                android:textColor="#424242"
+                android:layout_marginBottom="8dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <ListView
+                    android:id="@+id/rooms_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:divider="@android:color/transparent"
+                    android:dividerHeight="0dp" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/connection_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="12dp"
+                android:text="@string/not_connected"
+                android:gravity="center"
+                android:textColor="#757575" />
 
         </LinearLayout>
     </FrameLayout>
-</LinearLayout>
-=======
-        <ToggleButton
-            android:id="@+id/pause"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textOn="Pause ON"
-            android:textOff="Pause OFF" />
 
-        <TextView
-            android:id="@+id/result_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Ready"
-            android:textSize="18sp"
-            android:paddingTop="16dp" />
+    <!-- Bottom Navigation -->
+    <LinearLayout
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_alignParentBottom="true"
+        android:background="@android:color/white"
+        android:elevation="8dp"
+        android:orientation="horizontal"
+        android:weightSum="3">
+
+        <ImageButton
+            android:id="@+id/nav_recognition"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:src="@drawable/ic_recognition"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/purple_500"
+            android:contentDescription="@string/tab_recognition" />
+
+        <ImageButton
+            android:id="@+id/nav_lan"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:src="@drawable/ic_lan"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="#757575"
+            android:contentDescription="@string/tab_lan" />
+
+        <ImageButton
+            android:id="@+id/nav_customization"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:src="@drawable/ic_settings"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="#757575"
+            android:contentDescription="@string/tab_customization" />
 
     </LinearLayout>
 
-</ScrollView>
->>>>>>> 4e6b0de1c20aded759309a300af831677f014c12
+</RelativeLayout>

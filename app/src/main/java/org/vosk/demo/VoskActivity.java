@@ -16,19 +16,31 @@ package org.vosk.demo;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Typeface;
+import android.net.Uri;
+import android.net.nsd.NsdServiceInfo;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.ToggleButton;
+import android.widget.Toast;
 
 import org.vosk.LibVosk;
 import org.vosk.LogLevel;
@@ -40,26 +52,30 @@ import org.vosk.android.SpeechStreamService;
 import org.vosk.android.StorageService;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class VoskActivity extends Activity implements
-        RecognitionListener {
+        RecognitionListener, LanManager.LanListener {
 
     private static final String TAG = "VoskActivity";
 
     static private final int STATE_START = 0;
     static private final int STATE_READY = 1;
     static private final int STATE_DONE = 2;
-    static private final int STATE_FILE = 3;
     static private final int STATE_MIC = 4;
 
     /* Used to handle permission request */
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
+    private static final int PERMISSIONS_REQUEST_WRITE_STORAGE = 2;
+
     private Model model;
     private SpeechService speechService;
     private SpeechStreamService speechStreamService;
@@ -67,7 +83,19 @@ public class VoskActivity extends Activity implements
 
     private View recognitionLayout;
     private View customizationLayout;
+    private View lanLayout;
     private TextView fontSizeLabel;
+    
+    private FloatingActionButton recordBtn;
+    private FloatingActionButton saveBtn;
+    private ImageButton navRecognition, navCustomization, navLan;
+    
+    private LanManager lanManager;
+    private List<NsdServiceInfo> discoveredRooms = new ArrayList<>();
+    private ArrayAdapter<String> roomsAdapter;
+    private boolean isHosting = false;
+
+    private StringBuilder transcript = new StringBuilder();
 
     @Override
     public void onCreate(Bundle state) {
@@ -79,15 +107,23 @@ public class VoskActivity extends Activity implements
         resultView = findViewById(R.id.result_text);
         recognitionLayout = findViewById(R.id.recognition_layout);
         customizationLayout = findViewById(R.id.customization_layout);
+        lanLayout = findViewById(R.id.lan_layout);
         fontSizeLabel = findViewById(R.id.font_size_label);
+        recordBtn = findViewById(R.id.record_btn);
+        saveBtn = findViewById(R.id.save_btn);
+        
+        navRecognition = findViewById(R.id.nav_recognition);
+        navCustomization = findViewById(R.id.nav_customization);
+        navLan = findViewById(R.id.nav_lan);
 
         setUiState(STATE_START);
 
-        findViewById(R.id.recognize_mic).setOnClickListener(view -> recognizeMicrophone());
-        ((ToggleButton) findViewById(R.id.pause)).setOnCheckedChangeListener((view, isChecked) -> pause(isChecked));
+        recordBtn.setOnClickListener(view -> recognizeMicrophone());
+        saveBtn.setOnClickListener(view -> checkStoragePermissionAndSave());
 
-        setupTabs();
+        setupNavigation();
         setupCustomization();
+        setupLan();
 
         LibVosk.setLogLevel(LogLevel.INFO);
 
@@ -100,26 +136,94 @@ public class VoskActivity extends Activity implements
         }
     }
 
-    private void setupTabs() {
-        TabLayout tabLayout = findViewById(R.id.tabs);
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                if (tab.getPosition() == 0) {
-                    recognitionLayout.setVisibility(View.VISIBLE);
-                    customizationLayout.setVisibility(View.GONE);
-                } else {
-                    recognitionLayout.setVisibility(View.GONE);
-                    customizationLayout.setVisibility(View.VISIBLE);
+    private void checkStoragePermissionAndSave() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            int permissionCheck = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, PERMISSIONS_REQUEST_WRITE_STORAGE);
+                return;
+            }
+        }
+        saveTranscript();
+    }
+
+    private void saveTranscript() {
+        if (transcript.length() == 0 && (resultView.getText().length() == 0 || resultView.getText().equals(getString(R.string.ready)))) {
+            Toast.makeText(this, R.string.no_text_to_save, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String contentToSave = transcript.toString();
+        // Append current result view text if it has something not in transcript
+        String currentText = resultView.getText().toString();
+        if (!contentToSave.contains(currentText) && !currentText.equals(getString(R.string.ready)) && !currentText.equals(getString(R.string.say_something))) {
+            contentToSave += currentText + "\n";
+        }
+
+        String fileName = "Transcript_" + System.currentTimeMillis() + ".txt";
+        boolean success = false;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+            values.put(MediaStore.Downloads.MIME_TYPE, "text/plain");
+            values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+
+            Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+            if (uri != null) {
+                try (OutputStream os = getContentResolver().openOutputStream(uri)) {
+                    if (os != null) {
+                        os.write(contentToSave.getBytes());
+                        success = true;
+                    }
+                } catch (IOException e) {
+                    Log.e(TAG, "Error saving file", e);
                 }
             }
+        } else {
+            java.io.File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            java.io.File file = new java.io.File(path, fileName);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(file)) {
+                fos.write(contentToSave.getBytes());
+                success = true;
+            } catch (IOException e) {
+                Log.e(TAG, "Error saving file", e);
+            }
+        }
 
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {}
+        if (success) {
+            Toast.makeText(this, getString(R.string.text_saved, fileName), Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(this, getString(R.string.save_error, "Unknown"), Toast.LENGTH_SHORT).show();
+        }
+    }
 
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {}
-        });
+    private void setupNavigation() {
+        View.OnClickListener navListener = v -> {
+            recognitionLayout.setVisibility(View.GONE);
+            customizationLayout.setVisibility(View.GONE);
+            lanLayout.setVisibility(View.GONE);
+            
+            navRecognition.setImageTintList(ColorStateList.valueOf(Color.parseColor("#757575")));
+            navCustomization.setImageTintList(ColorStateList.valueOf(Color.parseColor("#757575")));
+            navLan.setImageTintList(ColorStateList.valueOf(Color.parseColor("#757575")));
+
+            int id = v.getId();
+            if (id == R.id.nav_recognition) {
+                recognitionLayout.setVisibility(View.VISIBLE);
+                navRecognition.setImageTintList(ColorStateList.valueOf(getResources().getColor(R.color.purple_500)));
+            } else if (id == R.id.nav_customization) {
+                customizationLayout.setVisibility(View.VISIBLE);
+                navCustomization.setImageTintList(ColorStateList.valueOf(getResources().getColor(R.color.purple_500)));
+            } else if (id == R.id.nav_lan) {
+                lanLayout.setVisibility(View.VISIBLE);
+                navLan.setImageTintList(ColorStateList.valueOf(getResources().getColor(R.color.purple_500)));
+            }
+        };
+
+        navRecognition.setOnClickListener(navListener);
+        navCustomization.setOnClickListener(navListener);
+        navLan.setOnClickListener(navListener);
     }
 
     private void setupCustomization() {
@@ -168,6 +272,68 @@ public class VoskActivity extends Activity implements
         });
     }
 
+    private void setupLan() {
+        lanManager = new LanManager(this, this);
+        
+        EditText roomNameEdit = findViewById(R.id.room_name_edit);
+        Button createRoomBtn = findViewById(R.id.create_room_btn);
+        ListView roomsList = findViewById(R.id.rooms_list);
+        
+        roomsAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, new ArrayList<>());
+        roomsList.setAdapter(roomsAdapter);
+        
+        createRoomBtn.setOnClickListener(v -> {
+            if (!isHosting) {
+                String name = roomNameEdit.getText().toString().trim();
+                if (!name.isEmpty()) {
+                    lanManager.createRoom(name);
+                    createRoomBtn.setText(R.string.stop_room);
+                    isHosting = true;
+                }
+            } else {
+                lanManager.stop();
+                createRoomBtn.setText(R.string.create_room);
+                isHosting = false;
+            }
+        });
+        
+        roomsList.setOnItemClickListener((parent, view, position, id) -> {
+            if (position < discoveredRooms.size()) {
+                lanManager.connectToRoom(discoveredRooms.get(position));
+            }
+        });
+        
+        lanManager.discoverRooms();
+    }
+
+    @Override
+    public void onRoomDiscovered(NsdServiceInfo serviceInfo) {
+        runOnUiThread(() -> {
+            discoveredRooms.add(serviceInfo);
+            roomsAdapter.add(serviceInfo.getServiceName());
+            roomsAdapter.notifyDataSetChanged();
+        });
+    }
+
+    @Override
+    public void onSubtitleReceived(String text) {
+        runOnUiThread(() -> {
+            resultView.setText(text);
+            final ScrollView scrollView = (ScrollView) resultView.getParent();
+            scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+        });
+    }
+
+    @Override
+    public void onConnectionStatusChanged(String status) {
+        runOnUiThread(() -> ((TextView) findViewById(R.id.connection_status)).setText("Status: " + status));
+    }
+
+    @Override
+    public void onError(String error) {
+        runOnUiThread(() -> ((TextView) findViewById(R.id.connection_status)).setText("Error: " + error));
+    }
+
     private void initModel() {
         StorageService.unpack(this, "model-es", "model",
                 (model) -> {
@@ -185,11 +351,13 @@ public class VoskActivity extends Activity implements
 
         if (requestCode == PERMISSIONS_REQUEST_RECORD_AUDIO) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Recognizer initialization is a time-consuming and, it involves IO,
-                // so we execute it in async task
                 initModel();
             } else {
                 finish();
+            }
+        } else if (requestCode == PERMISSIONS_REQUEST_WRITE_STORAGE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                saveTranscript();
             }
         }
     }
@@ -206,17 +374,35 @@ public class VoskActivity extends Activity implements
         if (speechStreamService != null) {
             speechStreamService.stop();
         }
+        
+        if (lanManager != null) {
+            lanManager.stop();
+        }
     }
 
-    // Método auxiliar para extraer el texto del JSON y reemplazarlo en la pantalla
     private void actualizarTexto(String hypothesis, String key) {
         try {
             org.json.JSONObject json = new org.json.JSONObject(hypothesis);
             if (json.has(key)) {
                 String textoLimpio = json.getString(key);
-                // Si el texto no está vacío, REEMPLAZA el valor en el TextView
                 if (!textoLimpio.trim().isEmpty()) {
-                    resultView.setText(textoLimpio);
+                    String display;
+                    if (key.equals("partial")) {
+                        display = transcript.toString() + textoLimpio;
+                    } else { // "text"
+                        transcript.append(textoLimpio).append("\n");
+                        display = transcript.toString();
+                    }
+                    
+                    resultView.setText(display);
+                    
+                    // Auto-scroll to bottom
+                    final ScrollView scrollView = (ScrollView) resultView.getParent();
+                    scrollView.post(() -> scrollView.fullScroll(View.FOCUS_DOWN));
+
+                    if (isHosting) {
+                        lanManager.sendSubtitle(display);
+                    }
                 }
             }
         } catch (org.json.JSONException e) {
@@ -226,15 +412,12 @@ public class VoskActivity extends Activity implements
 
     @Override
     public void onResult(String hypothesis) {
-        // Cuando termina un fragmento, Vosk usa la clave "text"
         actualizarTexto(hypothesis, "text");
     }
 
     @Override
     public void onFinalResult(String hypothesis) {
-        // El resultado final también usa la clave "text"
         actualizarTexto(hypothesis, "text");
-
         setUiState(STATE_DONE);
         if (speechStreamService != null) {
             speechStreamService = null;
@@ -243,7 +426,6 @@ public class VoskActivity extends Activity implements
 
     @Override
     public void onPartialResult(String hypothesis) {
-        // Mientras estás hablando, Vosk usa la clave "partial"
         actualizarTexto(hypothesis, "partial");
     }
 
@@ -262,41 +444,30 @@ public class VoskActivity extends Activity implements
             case STATE_START:
                 resultView.setText(R.string.preparing);
                 resultView.setMovementMethod(new ScrollingMovementMethod());
-                findViewById(R.id.recognize_mic).setEnabled(false);
-                findViewById(R.id.pause).setEnabled((false));
+                recordBtn.setEnabled(false);
                 break;
             case STATE_READY:
                 resultView.setText(R.string.ready);
-                ((Button) findViewById(R.id.recognize_mic)).setText(R.string.recognize_microphone);
-                findViewById(R.id.recognize_mic).setEnabled(true);
-                findViewById(R.id.pause).setEnabled((false));
+                recordBtn.setImageResource(R.drawable.ic_mic);
+                recordBtn.setEnabled(true);
                 break;
             case STATE_DONE:
-                ((Button) findViewById(R.id.recognize_mic)).setText(R.string.recognize_microphone);
-                findViewById(R.id.recognize_mic).setEnabled(true);
-                findViewById(R.id.pause).setEnabled((false));
-                ((ToggleButton) findViewById(R.id.pause)).setChecked(false);
-                break;
-            case STATE_FILE:
-                resultView.setText(getString(R.string.starting));
-                findViewById(R.id.recognize_mic).setEnabled(false);
-                findViewById(R.id.pause).setEnabled((false));
+                recordBtn.setImageResource(R.drawable.ic_mic);
+                recordBtn.setEnabled(true);
                 break;
             case STATE_MIC:
-                ((Button) findViewById(R.id.recognize_mic)).setText(R.string.stop_microphone);
-                resultView.setText(getString(R.string.say_something));
-                findViewById(R.id.recognize_mic).setEnabled(true);
-                findViewById(R.id.pause).setEnabled((true));
+                recordBtn.setImageResource(R.drawable.ic_stop);
+                // Don't clear resultView here if we want persistent text
+                // resultView.setText(getString(R.string.say_something));
+                recordBtn.setEnabled(true);
                 break;
-            default:
-                throw new IllegalStateException("Unexpected value: " + state);
         }
     }
 
     private void setErrorState(String message) {
         resultView.setText(message);
-        ((Button) findViewById(R.id.recognize_mic)).setText(R.string.recognize_microphone);
-        findViewById(R.id.recognize_mic).setEnabled(false);
+        recordBtn.setImageResource(R.drawable.ic_mic);
+        recordBtn.setEnabled(false);
     }
 
     private void recognizeMicrophone() {
@@ -316,11 +487,9 @@ public class VoskActivity extends Activity implements
         }
     }
 
-
     private void pause(boolean checked) {
         if (speechService != null) {
             speechService.setPause(checked);
         }
     }
-
 }

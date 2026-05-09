@@ -16,7 +16,22 @@
 
     <string name="tab_recognition">Recognition</string>
     <string name="tab_customization">Customization</string>
+    <string name="tab_lan">LAN Room</string>
     <string name="font_size_label">Subtitle Font Size: %d sp</string>
     <string name="font_family_label">Font Family:</string>
+
+    <string name="room_name_hint">Room Name</string>
+    <string name="create_room">Create Room</string>
+    <string name="stop_room">Stop Room</string>
+    <string name="available_rooms">Available Rooms:</string>
+    <string name="not_connected">Status: Not Connected</string>
+    <string name="connected_as_host">Status: Hosting Room: %s</string>
+    <string name="connected_to">Status: Connected to: %s</string>
+    <string name="error_room">Error: %s</string>
+
+    <string name="save_text">Save Text</string>
+    <string name="text_saved">Text saved to: %s</string>
+    <string name="save_error">Error saving text: %s</string>
+    <string name="no_text_to_save">No text to save</string>
 
 </resources>
